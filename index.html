@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小太陽學扶教具 - ㄅㄆㄇ魔法學堂 (7x2 校訂修復版)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: 圓體 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #FFF8E7; /* 溫暖護眼奶米黃 */
+            touch-action: manipulation;
+            user-select: none;
+            overflow-x: hidden;
+        }
+
+        /* 3D 浮雕按鈕 */
+        .btn-3d {
+            transition: transform 0.1s, box-shadow 0.1s;
+            box-shadow: 0 5px 0 0 rgba(0,0,0,0.12);
+        }
+        .btn-3d:active {
+            transform: translateY(5px);
+            box-shadow: 0 0 0 0 rgba(0,0,0,0.12);
+        }
+
+        /* 台灣教育部國小標準直式注音卡片 */
+        .moe-card {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #FFFFFF;
+            border: 3px solid #E5E7EB;
+            border-radius: 1.1rem;
+            padding: 0.4rem 0.3rem;
+            cursor: pointer;
+            box-shadow: 0 5px 0 0 #D1D5DB;
+            transition: all 0.2s ease;
+            position: relative;
+            width: 100%;
+        }
+        .moe-card:active:not(.disabled):not(.solved) {
+            transform: translateY(5px);
+            box-shadow: 0 0 0 0 #D1D5DB;
+        }
+
+        /* 漢字主體 */
+        .moe-char-main {
+            font-size: 2.1rem;
+            font-weight: 900;
+            color: #1F2937;
+            line-height: 1;
+        }
+
+        @media (min-width: 640px) {
+            .moe-char-main { font-size: 3rem; }
+            .moe-card { padding: 0.5rem 0.6rem; border-radius: 1.3rem; }
+        }
+
+        /* 右側直排注音欄位 */
+        .moe-zhuyin-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-left: 0.3rem;
+            position: relative;
+            padding-top: 0.75rem; /* 預留輕聲空間 */
+        }
+
+        .moe-symbol {
+            font-size: 0.9rem;
+            font-weight: 800;
+            line-height: 1.05;
+            color: #2563EB; /* 教育部標準注音藍 */
+        }
+
+        @media (min-width: 640px) {
+            .moe-symbol { font-size: 1.15rem; }
+        }
+
+        /* 教育部聲調位置規範 */
+        .moe-tone-light {
+            position: absolute;
+            top: -0.1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.85rem;
+            font-weight: 900;
+            color: #EA580C;
+        }
+        .moe-tone-side {
+            position: absolute;
+            right: -0.55rem;
+            bottom: 0.05rem;
+            font-size: 0.85rem;
+            font-weight: 900;
+            color: #EA580C;
+        }
+
+        /* 狀態樣式 */
+        .solved {
+            background-color: #ECFDF5 !important;
+            border-color: #10B981 !important;
+            box-shadow: 0 5px 0 0 #059669 !important;
+            transform: scale(1.04);
+        }
+        .disabled {
+            opacity: 0.25;
+            pointer-events: none;
+            filter: grayscale(100%);
+        }
+        .wobble {
+            animation: gentle-wobble 0.5s ease-in-out;
+        }
+        @keyframes gentle-wobble {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-5px) rotate(-2deg); }
+            40% { transform: translateX(4px) rotate(2deg); }
+            60% { transform: translateX(-2px); }
+            80% { transform: translateX(1px); }
+        }
+
+        /* 星星樣式 */
+        .star-inactive {
+            color: #D1D5DB; /* 灰底未點亮 */
+            transform: scale(1);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .star-active {
+            color: #F59E0B !important; /* 金黃閃耀點亮 */
+            transform: scale(1.2);
+            filter: drop-shadow(0 2px 4px rgba(245, 158, 11, 0.4));
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* 台灣國小標準十字田字格背景 */
+        .tianzige-box {
+            position: relative;
+            background-color: #FFFFFF;
+            border: 4px solid #EF4444; /* 教育部標準紅實線外框 */
+            box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+        }
+        /* 十字紅虛線中線 */
+        .tianzige-box::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 0;
+            border-top: 2px dashed rgba(239, 68, 68, 0.45);
+            pointer-events: none;
+            z-index: 1;
+        }
+        .tianzige-box::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 0;
+            border-left: 2px dashed rgba(239, 68, 68, 0.45);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* 鷹架水印字型過渡動畫 */
+        #tianzige-watermark {
+            transition: opacity 0.3s ease;
+        }
+
+        /* 自訂 Toast 彈窗 */
+        #toast {
+            visibility: hidden;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            transform: translateY(-15px);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-4 px-2 relative">
+
+    <!-- 頂部分類選單 (抽屜手風琴式) -->
+    <header class="w-full max-w-4xl bg-white/90 backdrop-blur rounded-3xl p-4 shadow-sm border-2 border-amber-200 flex flex-col gap-3 mb-4">
+        <!-- 模式切換分頁 (聽音小偵探 vs 田字格鷹架書寫) -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pb-3 border-b-2 border-amber-100">
+            <div class="flex items-center gap-2.5">
+                <span class="text-3xl">☀️</span>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-black text-gray-800 tracking-tight">小太陽學扶 ‧ ㄅㄆㄇ魔法學堂</h1>
+                    <span class="text-xs text-amber-700 font-bold bg-amber-100 px-2.5 py-0.5 rounded-full inline-block">7×2 雙排字卡 ‧ 田字格鷹架練寫</span>
+                </div>
+            </div>
+
+            <!-- 主模式切換鈕 -->
+            <div class="flex bg-amber-100/90 p-1.5 rounded-2xl border-2 border-amber-300 gap-1.5 shadow-inner">
+                <button id="tab-mode-cards" onclick="switchMainMode('cards')" class="btn-3d px-4 py-2 rounded-xl font-black text-sm sm:text-base bg-white text-amber-800 shadow-sm">
+                    <i class="fa-solid fa-ear-listen mr-1.5 text-amber-600"></i> 1. 聽音小偵探
+                </button>
+                <button id="tab-mode-write" onclick="switchMainMode('write')" class="btn-3d px-4 py-2 rounded-xl font-black text-sm sm:text-base bg-transparent text-gray-600 hover:text-amber-800">
+                    <i class="fa-solid fa-pen-nib mr-1.5 text-emerald-600"></i> 2. 田字格魔法筆
+                </button>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-center gap-2.5 pt-1">
+            <button onclick="toggleCategory('shengmu')" class="btn-3d bg-amber-100 hover:bg-amber-200 text-amber-800 font-black px-5 py-2.5 rounded-2xl text-base sm:text-lg border-amber-300">
+                <i class="fa-solid fa-microphone-lines mr-1.5"></i> 聲母 (21)
+            </button>
+            <button onclick="toggleCategory('jiemu')" class="btn-3d bg-blue-100 hover:bg-blue-200 text-blue-800 font-black px-5 py-2.5 rounded-2xl text-base sm:text-lg border-blue-300">
+                <i class="fa-solid fa-link mr-1.5"></i> 介母 (3)
+            </button>
+            <button onclick="toggleCategory('yunmu')" class="btn-3d bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-black px-5 py-2.5 rounded-2xl text-base sm:text-lg border-emerald-300">
+                <i class="fa-solid fa-music mr-1.5"></i> 韻母 (13)
+            </button>
+        </div>
+
+        <!-- 動態展開注音符號區 -->
+        <div id="symbol-selector" class="flex flex-wrap justify-center gap-1.5 mt-1 transition-all">
+            <!-- JS 自動產生 -->
+        </div>
+    </header>
+
+    <!-- 學習互動主區 -->
+    <main class="w-full max-w-4xl flex flex-col items-center">
+        
+        <!-- 【模式一：7x2 聽音小偵探】 -->
+        <div id="view-mode-cards" class="w-full flex flex-col items-center">
+            <!-- 任務目標與聽覺輔助列 -->
+            <div class="bg-amber-50 border-2 border-amber-300 rounded-3xl p-4 sm:p-5 mb-5 w-full shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div id="unit-badge" class="bg-amber-400 text-white w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl font-black shadow-md border-b-4 border-amber-500">
+                        ㄅ
+                    </div>
+                    <div>
+                        <div class="text-lg sm:text-xl font-black text-gray-800 mb-1" id="prompt-heading">找出「ㄅ」在哪裡！</div>
+                        <!-- 星星成就槽 -->
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-amber-800 font-bold bg-amber-200/80 px-2 py-0.5 rounded-full">目標星星</span>
+                            <div id="star-container" class="flex flex-wrap gap-1.5 text-xl sm:text-2xl items-center">
+                                <!-- 動態星星 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button onclick="playTargetSentence()" class="btn-3d bg-teal-500 hover:bg-teal-400 text-white font-bold px-5 py-3 rounded-2xl text-lg sm:text-xl flex items-center gap-2 border-teal-600 shadow-md">
+                    <i class="fa-solid fa-volume-high"></i> 慢速唸句子
+                </button>
+            </div>
+
+            <!-- 強制 7×2 雙排字卡區 -->
+            <div class="flex flex-col gap-3 mb-6 w-full items-center">
+                <!-- 上句 (前7字) -->
+                <div id="row-1" class="grid grid-cols-7 gap-1.5 sm:gap-2.5 w-full max-w-3xl"></div>
+                <!-- 下句 (後7字) -->
+                <div id="row-2" class="grid grid-cols-7 gap-1.5 sm:gap-2.5 w-full max-w-3xl"></div>
+            </div>
+
+            <!-- 鷹架輔助工具 -->
+            <div class="flex gap-4">
+                <button onclick="giveHint()" class="btn-3d bg-yellow-400 hover:bg-yellow-300 text-yellow-900 font-bold px-5 py-3 rounded-2xl text-base sm:text-lg flex items-center gap-2 border-yellow-500">
+                    <i class="fa-solid fa-lightbulb"></i> 💡 魔法提示
+                </button>
+                <button onclick="resetCards()" class="btn-3d bg-gray-200 hover:bg-gray-100 text-gray-700 font-bold px-5 py-3 rounded-2xl text-base sm:text-lg flex items-center gap-2 border-gray-300">
+                    <i class="fa-solid fa-rotate-right"></i> 重來一次
+                </button>
+            </div>
+        </div>
+
+        <!-- 【模式二：田字格鷹架書寫練習區（ZPD 鷹架理論）】 -->
+        <div id="view-mode-write" class="w-full flex flex-col items-center hidden">
+            <!-- 鷹架層級提示列 -->
+            <div class="bg-amber-50 border-2 border-amber-300 rounded-3xl p-4 sm:p-5 mb-5 w-full shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div id="write-unit-badge" class="bg-emerald-500 text-white w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-3xl sm:text-4xl font-black shadow-md border-b-4 border-emerald-600">
+                        ㄅ
+                    </div>
+                    <div>
+                        <div class="text-lg sm:text-xl font-black text-gray-800 mb-1" id="write-heading">在田字格裡寫寫看「ㄅ」！</div>
+                        <span class="text-xs text-emerald-800 font-bold bg-emerald-200 px-2.5 py-0.5 rounded-full inline-block">
+                            <i class="fa-solid fa-stairs mr-1"></i> 漸退式特教鷹架設計
+                        </span>
+                    </div>
+                </div>
+
+                <!-- 鷹架三階段切換按鈕 -->
+                <div class="flex items-center gap-1.5 bg-white p-1.5 rounded-2xl border-2 border-amber-200 shadow-sm flex-wrap justify-center">
+                    <button id="scaffold-btn-1" onclick="setScaffoldLevel(1)" class="btn-3d px-3 py-1.5 rounded-xl font-black text-xs sm:text-sm bg-emerald-500 text-white border-emerald-600 shadow-sm">
+                        🟢 1. 描紅小幫手
+                    </button>
+                    <button id="scaffold-btn-2" onclick="setScaffoldLevel(2)" class="btn-3d px-3 py-1.5 rounded-xl font-black text-xs sm:text-sm bg-white text-gray-700 border-gray-200">
+                        🟡 2. 位置引導
+                    </button>
+                    <button id="scaffold-btn-3" onclick="setScaffoldLevel(3)" class="btn-3d px-3 py-1.5 rounded-xl font-black text-xs sm:text-sm bg-white text-gray-700 border-gray-200">
+                        🟣 3. 自我大挑戰
+                    </button>
+                </div>
+            </div>
+
+            <!-- 田字格與控制板主區域 -->
+            <div class="flex flex-col md:flex-row items-center justify-center gap-6 w-full max-w-3xl mb-6">
+                <!-- 田字格主體 -->
+                <div class="relative tianzige-box w-[300px] h-[300px] sm:w-[350px] sm:h-[350px] rounded-3xl overflow-hidden flex items-center justify-center select-none touch-none">
+                    <!-- 水印鷹架底字 -->
+                    <div id="tianzige-watermark" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 z-0">
+                        <span id="watermark-symbol" class="text-[200px] sm:text-[230px] font-black text-red-500 leading-none select-none">ㄅ</span>
+                    </div>
+
+                    <!-- 觸控平滑繪圖畫布 (Canvas) -->
+                    <canvas id="write-canvas" width="350" height="350" class="absolute inset-0 w-full h-full z-10 cursor-crosshair"></canvas>
+                </div>
+
+                <!-- 書寫工具鷹架控制板 -->
+                <div class="flex flex-col gap-3 w-full sm:w-64">
+                    <!-- 筆刷選擇卡片 -->
+                    <div class="bg-white p-4 rounded-3xl border-2 border-amber-200 shadow-sm">
+                        <label class="text-gray-700 font-black text-sm block mb-2">
+                            <i class="fa-solid fa-palette text-amber-500 mr-1.5"></i> 選擇畫筆手感
+                        </label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button id="brush-mode-normal" onclick="setBrushMode('normal')" class="btn-3d bg-blue-500 text-white font-black py-2.5 rounded-xl border-blue-600 text-sm shadow-sm">
+                                粗藍筆
+                            </button>
+                            <button id="brush-mode-rainbow" onclick="setBrushMode('rainbow')" class="btn-3d bg-gradient-to-r from-pink-400 via-amber-300 to-emerald-400 text-white font-black py-2.5 rounded-xl border-pink-500 text-sm">
+                                🌈 彩虹筆
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 鷹架輔助：暫時偷看一眼 (僅在挑戰等級出現或隨時可用) -->
+                    <button id="btn-peek" onclick="peekWatermark()" class="btn-3d bg-amber-100 hover:bg-amber-200 text-amber-900 font-black py-3 rounded-2xl border-amber-300 text-base flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-eye"></i> 💡 偷看一眼筆劃 (1.2秒)
+                    </button>
+
+                    <!-- 清除畫布 -->
+                    <button onclick="clearWritingCanvas()" class="btn-3d bg-rose-100 text-rose-700 hover:bg-rose-200 font-black py-3 rounded-2xl border-rose-300 text-base flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-eraser"></i> 擦掉重寫
+                    </button>
+
+                    <!-- 完成驗證慶祝 -->
+                    <button onclick="finishWriting()" class="btn-3d bg-emerald-500 hover:bg-emerald-400 text-white font-black py-3.5 rounded-2xl border-emerald-600 text-lg shadow-md flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-circle-check"></i> 我寫好了！
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 吐司彈窗 -->
+    <div id="toast" class="fixed bottom-8 bg-white px-7 py-3.5 rounded-full shadow-2xl border-4 border-amber-300 flex items-center gap-3 z-50">
+        <span id="toast-emoji" class="text-3xl">🐻</span>
+        <span id="toast-msg" class="text-lg font-bold text-gray-800">加油！</span>
+    </div>
+
+    <script>
+        // --- 完整 37 單元資料庫 (嚴格 14 字，7x2 結構，寶寶讀做 ㄅㄠˇ ㄅㄠ˙) ---
+        const RAW_UNITS = [
+            // --- 聲母 (21) ---
+            { symbol: "ㄅ", type: "shengmu", chars: "爸爸上班真辛苦我會做個好寶寶", bpms: "ㄅㄚˋ,ㄅㄚ˙,ㄕㄤˋ,ㄅㄢ,ㄓㄣ,ㄒㄧㄣ,ㄎㄨˇ,ㄨㄛˇ,ㄏㄨㄟˋ,ㄗㄨㄛˋ,ㄍㄜ˙,ㄏㄠˇ,ㄅㄠˇ,ㄅㄠ˙", targets: [0, 1, 3, 12, 13] },
+            { symbol: "ㄆ", type: "shengmu", chars: "哥哥在家玩拼圖外婆陪我拍皮球", bpms: "ㄍㄜ,ㄍㄜ˙,ㄗㄞˋ,ㄐㄧㄚ,ㄨㄢˊ,ㄆㄧㄣ,ㄊㄨˊ,ㄨㄞˋ,ㄆㄛˊ,ㄆㄟˊ,ㄨㄛˇ,ㄆㄞ,ㄆㄧˊ,ㄑㄧㄡˊ", targets: [5, 8, 9, 11, 12] },
+            { symbol: "ㄇ", type: "shengmu", chars: "木屋旁有梅花樹樹下花貓跳上屋", bpms: "ㄇㄨˋ,ㄨ,ㄆㄤˊ,ㄧㄡˇ,ㄇㄟˊ,ㄏㄨㄚ,ㄕㄨˋ,ㄕㄨˋ,ㄒㄧㄚˋ,ㄏㄨㄚ,ㄇㄠ,ㄊㄧㄠˋ,ㄕㄤˋ,ㄨ", targets: [0, 4, 10] },
+            { symbol: "ㄈ", type: "shengmu", chars: "發現一個方盒子盒子裡有小風車", bpms: "ㄈㄚ,ㄒㄧㄢˋ,ㄧˊ,ㄍㄜ˙,ㄈㄤ,ㄏㄜˊ,ㄗ˙,ㄏㄜˊ,ㄗ˙,ㄌㄧˇ,ㄧㄡˇ,ㄒㄧㄠˇ,ㄈㄥ,ㄔㄜ", targets: [0, 4, 12] },
+            { symbol: "ㄉ", type: "shengmu", chars: "蝌蚪池塘水中游豆苗陽光下長大", bpms: "ㄎㄜ,ㄉㄡˇ,ㄔˊ,ㄊㄤˊ,ㄕㄨㄟˇ,ㄓㄨㄥ,ㄧㄡˊ,ㄉㄡˋ,ㄇㄧㄠˊ,ㄧㄤˊ,ㄍㄨㄤ,ㄒㄧㄚˋ,ㄓㄤˇ,ㄉㄚˋ", targets: [1, 7, 13] },
+            { symbol: "ㄊ", type: "shengmu", chars: "小小兔子愛跳舞跳進庭院曬太陽", bpms: "ㄒㄧㄠˇ,ㄒㄧㄠˇ,ㄊㄨˋ,ㄗ˙,ㄞˋ,ㄊㄧㄠˋ,ㄨˇ,ㄊㄧㄠˋ,ㄐㄧㄣˋ,ㄊㄧㄥˊ,ㄩㄢˋ,ㄕㄞˋ,ㄊㄞˋ,ㄧㄤˊ", targets: [2, 5, 7, 9, 12] },
+            { symbol: "ㄋ", type: "shengmu", chars: "聽見小鳥在唱歌能唱能跳真熱鬧", bpms: "ㄊㄧㄥ,ㄐㄧㄢˋ,ㄒㄧㄠˇ,ㄋㄧㄠˇ,ㄗㄞˋ,ㄔㄤˋ,ㄍㄜ,ㄋㄥˊ,ㄔㄤˋ,ㄋㄥˊ,ㄊㄧㄠˋ,ㄓㄣ,ㄖㄜˋ,ㄋㄠˋ", targets: [3, 7, 9, 13] },
+            { symbol: "ㄌ", type: "shengmu", chars: "大家一起撿垃圾丟進藍色垃圾桶", bpms: "ㄉㄚˋ,ㄐㄧㄚ,ㄧˋ,ㄑㄧˇ,ㄐㄧㄢˇ,ㄌㄜˋ,ㄙㄜˋ,ㄉㄧㄡ,ㄐㄧㄣˋ,ㄌㄢˊ,ㄙㄜˋ,ㄌㄜˋ,ㄙㄜˋ,ㄊㄨㄥˇ", targets: [5, 9, 11] },
+            { symbol: "ㄍ", type: "shengmu", chars: "哥哥長得高又壯跟我一起學唱歌", bpms: "ㄍㄜ,ㄍㄜ˙,ㄓㄤˇ,ㄉㄜ˙,ㄍㄠ,ㄧㄡˋ,ㄓㄨㄤˋ,ㄍㄣ,ㄨㄛˇ,ㄧˋ,ㄑㄧˇ,ㄒㄩㄝˊ,ㄔㄤˋ,ㄍㄜ", targets: [0, 1, 4, 7, 13] },
+            { symbol: "ㄎ", type: "shengmu", chars: "打開課本要專心考試都會真開心", bpms: "ㄉㄚˇ,ㄎㄞ,ㄎㄜˋ,ㄅㄣˇ,ㄧㄠˋ,ㄓㄨㄢ,ㄒㄧㄣ,ㄎㄠˇ,ㄕˋ,ㄉㄡ,ㄏㄨㄟˋ,ㄓㄣ,ㄎㄞ,ㄒㄧㄣ", targets: [1, 2, 7, 12] },
+            { symbol: "ㄏ", type: "shengmu", chars: "猴子樹上吃香蕉弟弟踩到滑一跤", bpms: "ㄏㄡˊ,ㄗ˙,ㄕㄨˋ,ㄕㄤˋ,ㄔ,ㄒㄧㄤ,ㄐㄧㄠ,ㄉㄧˋ,ㄉㄧ˙,ㄘㄞˇ,ㄉㄠˋ,ㄏㄨㄚˊ,ㄧˋ,ㄐㄧㄠ", targets: [0, 11] },
+            { symbol: "ㄐ", type: "shengmu", chars: "姊姊送我小飛機開心帶回家裡去", bpms: "ㄐㄧㄝˇ,ㄐㄧㄝ˙,ㄙㄨㄥˋ,ㄨㄛˇ,ㄒㄧㄠˇ,ㄈㄟ,ㄐㄧ,ㄎㄞ,ㄒㄧㄣ,ㄉㄞˋ,ㄏㄨㄟˊ,ㄐㄧㄚ,ㄌㄧˇ,ㄑㄩˋ", targets: [0, 1, 6, 11] },
+            { symbol: "ㄑ", type: "shengmu", chars: "騎著木馬去打仗伸手比七當手槍", bpms: "ㄑㄧˊ,ㄓㄜ˙,ㄇㄨˋ,ㄇㄚˇ,ㄑㄩˋ,ㄉㄚˇ,ㄓㄤˋ,ㄕㄣ,ㄕㄡˇ,ㄅㄧˇ,ㄑㄧ,ㄉㄤ,ㄕㄡˇ,ㄑㄧㄤ", targets: [0, 4, 10, 13] },
+            { symbol: "ㄒ", type: "shengmu", chars: "西瓜西瓜大又圓哥哥吃了笑嘻嘻", bpms: "ㄒㄧ,ㄍㄨㄚ,ㄒㄧ,ㄍㄨㄚ,ㄉㄚˋ,ㄧㄡˋ,ㄩㄢˊ,ㄍㄜ,ㄍㄜ˙,ㄔ,ㄌㄜ˙,ㄒㄧㄠˋ,ㄒㄧ,ㄒㄧ", targets: [0, 2, 11, 12, 13] },
+            { symbol: "ㄓ", type: "shengmu", chars: "蜘蛛牆上掛蚊帳露水化成珍珠光", bpms: "ㄓ,ㄓㄨ,ㄑㄧㄤˊ,ㄕㄤˋ,ㄍㄨㄚˋ,ㄨㄣˊ,ㄓㄤˋ,ㄌㄨˋ,ㄕㄨㄟˇ,ㄏㄨㄚˋ,ㄔㄥˊ,ㄓㄣ,ㄓㄨ,ㄍㄨㄤ", targets: [0, 1, 6, 11, 12] },
+            { symbol: "ㄔ", type: "shengmu", chars: "乘坐火車吹冷氣看著窗外吃蛋捲", bpms: "ㄔㄥˊ,ㄗㄨㄛˋ,ㄏㄨㄛˇ,ㄔㄜ,ㄔㄨㄟ,ㄌㄥˇ,ㄑㄧˋ,ㄎㄢˋ,ㄓㄜ˙,ㄔㄨㄤ,ㄨㄞˋ,ㄔ,ㄉㄢˋ,ㄐㄩㄢˇ", targets: [0, 3, 4, 9, 11] },
+            { symbol: "ㄕ", type: "shengmu", chars: "獅子獅子真威風大吼一聲好威猛", bpms: "ㄕ,ㄗ˙,ㄕ,ㄗ˙,ㄓㄣ,ㄨㄟ,ㄈㄥ,ㄉㄚˋ,ㄏㄡˇ,ㄧˋ,ㄕㄥ,ㄏㄠˇ,ㄨㄟ,ㄇㄥˇ", targets: [0, 2, 10] },
+            { symbol: "ㄖ", type: "shengmu", chars: "向日葵呀轉呀轉熱情如火不喊累", bpms: "ㄒㄧㄤˋ,ㄖˋ,ㄎㄨㄟˊ,ㄧㄚ˙,ㄓㄨㄢˇ,ㄧㄚ˙,ㄓㄨㄢˇ,ㄖㄜˋ,ㄑㄧㄥˊ,ㄖㄨˊ,ㄏㄨㄛˇ,ㄅㄨˋ,ㄏㄢˇ,ㄌㄟˋ", targets: [1, 7, 9] },
+            { symbol: "ㄗ", type: "shengmu", chars: "早睡早起上學去在學校裡學寫字", bpms: "ㄗㄠˇ,ㄕㄨㄟˋ,ㄗㄠˇ,ㄑㄧˇ,ㄕㄤˋ,ㄒㄧㄝˊ,ㄑㄩˋ,ㄗㄞˋ,ㄒㄩㄝˊ,ㄒㄧㄠˋ,ㄌㄧˇ,ㄒㄩㄝˊ,ㄒㄧㄝˇ,ㄗˋ", targets: [0, 2, 7, 13] },
+            { symbol: "ㄘ", type: "shengmu", chars: "小羊草地吃青草七色彩虹真奇妙", bpms: "ㄒㄧㄠˇ,ㄧㄤˊ,ㄘㄠˇ,ㄉㄧˋ,ㄔ,ㄑㄧㄥ,ㄘㄠˇ,ㄑㄧ,ㄙㄜˋ,ㄘㄞˇ,ㄏㄨㄥˊ,ㄓㄣ,ㄑㄧˊ,ㄇㄧㄠˋ", targets: [2, 6, 9] },
+            { symbol: "ㄙ", type: "shengmu", chars: "天空灑下小雨滴撐著雨傘回家去", bpms: "ㄊㄧㄢ,ㄎㄨㄥ,ㄙㄚˇ,ㄒㄧㄚˋ,ㄒㄧㄠˇ,ㄩˇ,ㄉㄧ,ㄔㄥ,ㄓㄜ˙,ㄩˇ,ㄙㄢˇ,ㄏㄨㄟˊ,ㄐㄧㄚ,ㄑㄩˋ", targets: [2, 10] },
+
+            // --- 介母 (3) ---
+            { symbol: "ㄧ", type: "jiemu", chars: "小雞喜歡玩下棋贏得勝利真得意", bpms: "ㄒㄧㄠˇ,ㄐㄧ,ㄒㄧˇ,ㄏㄨㄢ,ㄨㄢˊ,ㄒㄧㄚˋ,ㄑㄧˊ,ㄧㄥˊ,ㄉㄜˊ,ㄕㄥˋ,ㄌㄧˋ,ㄓㄣ,ㄉㄜˊ,ㄧˋ", targets: [0, 1, 2, 5, 6, 7, 10, 13] },
+            { symbol: "ㄨ", type: "jiemu", chars: "午後蝴蝶在飛舞我在樹下畫成圖", bpms: "ㄨˇ,ㄏㄡˋ,ㄏㄨˊ,ㄉㄧㄝˊ,ㄗㄞˋ,ㄈㄟ,ㄨˇ,ㄨㄛˇ,ㄗㄞˋ,ㄕㄨˋ,ㄒㄧㄚˋ,ㄏㄨㄚˋ,ㄔㄥˊ,ㄊㄨˊ", targets: [0, 2, 6, 7, 13] },
+            { symbol: "ㄩ", type: "jiemu", chars: "落下許多小雨滴和小魚一起旅行", bpms: "ㄌㄨㄛˋ,ㄒㄧㄚˋ,ㄒㄩˇ,ㄉㄨㄛ,ㄒㄧㄠˇ,ㄩˇ,ㄉㄧ,ㄏㄢˋ,ㄒㄧㄠˇ,ㄩˊ,ㄧˋ,ㄑㄧˇ,ㄌㄩˇ,ㄒㄧㄥˊ", targets: [2, 5, 9, 12] },
+
+            // --- 韻母 (13) ---
+            { symbol: "ㄚ", type: "yunmu", chars: "大大眼睛眨呀眨媽媽教他學講話", bpms: "ㄉㄚˋ,ㄉㄚˋ,ㄧㄢˇ,ㄐㄧㄥ,ㄓㄚˇ,ㄧㄚ˙,ㄓㄚˇ,ㄇㄚ,ㄇㄚ˙,ㄐㄧㄠ,ㄊㄚ,ㄒㄩㄝˊ,ㄐㄧㄤˇ,ㄏㄨㄚˋ", targets: [0, 1, 4, 5, 6, 7, 8, 10, 13] },
+            { symbol: "ㄛ", type: "yunmu", chars: "我有一本魔術書摸摸彩球變成豬", bpms: "ㄨㄛˇ,ㄧㄡˇ,ㄧˋ,ㄅㄣˇ,ㄇㄛˊ,ㄕㄨˋ,ㄕㄨ,ㄇㄛ,ㄇㄛ,ㄘㄞˇ,ㄑㄧㄡˊ,ㄅㄧㄢˋ,ㄔㄥˊ,ㄓㄨ", targets: [0, 4, 7, 8] },
+            { symbol: "ㄜ", type: "yunmu", chars: "這隻可愛的白鵝喜歡熱鬧愛唱歌", bpms: "ㄓㄜˋ,ㄓ,ㄎㄜˇ,ㄞˋ,ㄉㄜ˙,ㄅㄞˊ,ㄜˊ,ㄒㄧˇ,ㄏㄨㄢ,ㄖㄜˋ,ㄋㄠˋ,ㄞˋ,ㄔㄤˋ,ㄍㄜ", targets: [0, 2, 4, 6, 9, 13] },
+            { symbol: "ㄝ", type: "yunmu", chars: "田野換上新衣裳蝴蝶飛過月亮旁", bpms: "ㄊㄧㄢˊ,ㄧㄝˇ,ㄏㄨㄢˋ,ㄕㄤˋ,ㄒㄧㄣ,ㄧ,ㄕㄤ˙,ㄏㄨˊ,ㄉㄧㄝˊ,ㄈㄟ,ㄍㄨㄛˋ,ㄩㄝˋ,ㄌㄧㄤˋ,ㄆㄤˊ", targets: [1, 8, 11] },
+            { symbol: "ㄞ", type: "yunmu", chars: "奶奶開車去買菜白色袋子裝滿滿", bpms: "ㄋㄞˇ,ㄋㄞ˙,ㄎㄞ,ㄔㄜ,ㄑㄩˋ,ㄇㄞˇ,ㄘㄞˋ,ㄅㄞˊ,ㄙㄜˋ,ㄉㄞˋ,ㄗ˙,ㄓㄨㄤ,ㄇㄢˇ,ㄇㄢˇ", targets: [0, 1, 2, 5, 6, 7, 9] },
+            { symbol: "ㄟ", type: "yunmu", chars: "窗外下雨又打雷妹妹嚇得流眼淚", bpms: "ㄔㄨㄤ,ㄨㄞˋ,ㄒㄧㄚˋ,ㄩˇ,ㄧㄡˋ,ㄉㄚˇ,ㄌㄟˊ,ㄇㄟˋ,ㄇㄟ˙,ㄒㄧㄚˋ,ㄉㄜ˙,ㄌㄧㄡˊ,ㄧㄢˇ,ㄌㄟˋ", targets: [6, 7, 8, 13] },
+            { symbol: "ㄠ", type: "yunmu", chars: "戴上新帽吃年糕新年到啦領紅包", bpms: "ㄉㄞˋ,ㄕㄤˋ,ㄒㄧㄣ,ㄇㄠˋ,ㄔ,ㄋㄧㄢˊ,ㄍㄠ,ㄒㄧㄣ,ㄋㄧㄢˊ,ㄉㄠˋ,ㄌㄚ˙,ㄌㄧㄥˇ,ㄏㄨㄥˊ,ㄅㄠ", targets: [3, 6, 9, 13] },
+            { symbol: "ㄡ", type: "yunmu", chars: "門後有隻哈巴狗每天都吃肉骨頭", bpms: "ㄇㄣˊ,ㄏㄡˋ,ㄧㄡˇ,ㄓ,ㄏㄚ,ㄅㄚ,ㄍㄡˇ,ㄇㄟˇ,ㄊㄧㄢ,ㄉㄡ,ㄔ,ㄖㄡˋ,ㄍㄨˇ,ㄊㄡ˙", targets: [1, 2, 6, 9, 11, 13] },
+            { symbol: "ㄢ", type: "yunmu", chars: "小小圓碗裝滿飯慢慢吃完我最讚", bpms: "ㄒㄧㄠˇ,ㄒㄧㄠˇ,ㄩㄢˊ,ㄨㄢˇ,ㄓㄨㄤ,ㄇㄢˇ,ㄈㄢˋ,ㄇㄢˋ,ㄇㄢˋ,ㄔ,ㄨㄢˊ,ㄨㄛˇ,ㄗㄨㄟˋ,ㄗㄢˋ", targets: [2, 3, 5, 6, 7, 8, 10, 13] },
+            { symbol: "ㄤ", type: "yunmu", chars: "小螃蟹呀學穿鞋綁個鞋帶全打結", bpms: "ㄒㄧㄠˇ,ㄆㄤˊ,ㄒㄧㄝˋ,ㄧㄚ˙,ㄒㄩㄝˊ,ㄔㄨㄢ,ㄒㄧㄝˊ,ㄅㄤˇ,ㄍㄜ˙,ㄒㄧㄝˊ,ㄉㄞˋ,ㄑㄩㄢˊ,ㄉㄚˇ,ㄐㄧㄝˊ", targets: [1, 7] },
+            { symbol: "ㄥ", type: "yunmu", chars: "生日朋友玩風箏迎著風來線放鬆", bpms: "ㄕㄥ,ㄖˋ,ㄆㄥˊ,ㄧㄡˇ,ㄨㄢˊ,ㄈㄥ,ㄓㄥ,ㄧㄥˊ,ㄓㄜ˙,ㄈㄥ,ㄌㄞˊ,ㄒㄧㄢˋ,ㄈㄤˋ,ㄙㄨㄥ", targets: [0, 2, 5, 6, 7, 9, 13] },
+            { symbol: "ㄦ", type: "yunmu", chars: "二哥在兒童節裡領養一隻摺耳貓", bpms: "ㄦˋ,ㄍㄜ,ㄗㄞˋ,ㄦˊ,ㄊㄨㄥˊ,ㄐㄧㄝˊ,ㄌㄧˇ,ㄌㄧㄥˇ,ㄧㄤˇ,ㄧˋ,ㄓ,ㄓㄜˊ,ㄦˇ,ㄇㄠ", targets: [0, 3, 12] }
+        ];
+
+        // 轉換資料結構
+        const ALL_UNITS = RAW_UNITS.map(unitDef => {
+            const charArray = Array.from(unitDef.chars);
+            const bpmArray = unitDef.bpms.split(',');
+            const words = charArray.map((char, index) => {
+                let rawBpm = bpmArray[index];
+                let tone = '1';
+                if (rawBpm.includes('ˋ')) { tone = '4'; rawBpm = rawBpm.replace('ˋ', ''); }
+                else if (rawBpm.includes('ˇ')) { tone = '3'; rawBpm = rawBpm.replace('ˇ', ''); }
+                else if (rawBpm.includes('ˊ')) { tone = '2'; rawBpm = rawBpm.replace('ˊ', ''); }
+                else if (rawBpm.includes('˙') || rawBpm.startsWith('˙')) { tone = 'light'; rawBpm = rawBpm.replace('˙', ''); }
+
+                return { char, bpm: rawBpm, tone, target: unitDef.targets.includes(index) };
+            });
+            return { ...unitDef, words };
+        });
+
+        let currentUnitIndex = 0;
+        let foundTargets = 0;
+        let totalCurrentTargets = 0;
+        let mainMode = 'cards'; // 'cards' | 'write'
+        let scaffoldLevel = 1;  // 1: 描紅小幫手 (40%), 2: 位置引導 (15%), 3: 自我挑戰 (0%)
+
+        // --- 模式切換邏輯 ---
+        function switchMainMode(mode) {
+            mainMode = mode;
+            const viewCards = document.getElementById('view-mode-cards');
+            const viewWrite = document.getElementById('view-mode-write');
+            const tabCards = document.getElementById('tab-mode-cards');
+            const tabWrite = document.getElementById('tab-mode-write');
+
+            if (mode === 'cards') {
+                viewCards.classList.remove('hidden');
+                viewWrite.classList.add('hidden');
+                tabCards.className = "btn-3d px-4 py-2 rounded-xl font-black text-sm sm:text-base bg-white text-amber-800 shadow-sm";
+                tabWrite.className = "btn-3d px-4 py-2 rounded-xl font-black text-sm sm:text-base bg-transparent text-gray-600 hover:text-amber-800";
+                showCuteToast("切換到聽音小偵探！", "🎧");
+            } else {
+                viewCards.classList.add('hidden');
+                viewWrite.classList.remove('hidden');
+                tabWrite.className = "btn-3d px-4 py-2 rounded-xl font-black text-sm sm:text-base bg-white text-emerald-800 shadow-sm";
+                tabCards.className = "btn-3d px-4 py-2 rounded-xl font-black text-sm sm:text-base bg-transparent text-gray-600 hover:text-amber-800";
+                initWritingCanvas();
+                updateWritingUnit();
+                speakSlow(`在田字格練習寫 ${ALL_UNITS[currentUnitIndex].symbol}`);
+                showCuteToast("切換到田字格鷹架練寫！", "✏️");
+            }
+        }
+
+        // --- 田字格鷹架等級切換 (ZPD 鷹架理論) ---
+        function setScaffoldLevel(lvl) {
+            scaffoldLevel = lvl;
+            const watermark = document.getElementById('tianzige-watermark');
+            const b1 = document.getElementById('scaffold-btn-1');
+            const b2 = document.getElementById('scaffold-btn-2');
+            const b3 = document.getElementById('scaffold-btn-3');
+
+            // 樣式還原
+            [b1, b2, b3].forEach(b => b.className = "btn-3d px-3 py-1.5 rounded-xl font-black text-xs sm:text-sm bg-white text-gray-700 border-gray-200");
+
+            if (lvl === 1) {
+                b1.className = "btn-3d px-3 py-1.5 rounded-xl font-black text-xs sm:text-sm bg-emerald-500 text-white border-emerald-600 shadow-sm";
+                watermark.style.opacity = '0.40'; // 清晰描紅
+                showCuteToast("等級 1：跟著描紅小幫手寫寫看！", "🟢");
+                speakSlow("跟著紅色的字描一描喔！");
+            } else if (lvl === 2) {
+                b2.className = "btn-3d px-3 py-1.5 rounded-xl font-black text-xs sm:text-sm bg-amber-500 text-white border-amber-600 shadow-sm";
+                watermark.style.opacity = '0.15'; // 淡色位置提示
+                showCuteToast("等級 2：看著十字中線自己試試看！", "🟡");
+                speakSlow("看著十字虛線，注意起筆位置喔！");
+            } else {
+                b3.className = "btn-3d px-3 py-1.5 rounded-xl font-black text-xs sm:text-sm bg-purple-600 text-white border-purple-700 shadow-sm";
+                watermark.style.opacity = '0'; // 獨立默寫
+                showCuteToast("等級 3：自我大挑戰！忘記了可以按偷看一眼喔！", "🟣");
+                speakSlow("太厲害了！自己挑戰寫寫看！忘記了可以按魔法偷看一眼！");
+            }
+        }
+
+        // 鷹架輔助：暫時偷看一眼水印
+        function peekWatermark() {
+            const watermark = document.getElementById('tianzige-watermark');
+            const origOpacity = watermark.style.opacity;
+            watermark.style.opacity = '0.45';
+            soundSuccess();
+            showCuteToast("💡 魔法提示！筆劃浮現囉！", "✨");
+            setTimeout(() => {
+                watermark.style.opacity = origOpacity;
+            }, 1200);
+        }
+
+        // --- 田字格 Canvas 觸控平滑手寫引擎 ---
+        let writeCanvas, writeCtx, isWriting = false;
+        let brushMode = 'normal'; // 'normal' | 'rainbow'
+        let writePoints = [];
+        let rainbowHue = 0;
+
+        function initWritingCanvas() {
+            writeCanvas = document.getElementById('write-canvas');
+            if (!writeCanvas) return;
+            writeCtx = writeCanvas.getContext('2d');
+
+            // 確保畫布解析度與容器相容
+            const rect = writeCanvas.getBoundingClientRect();
+            if (writeCanvas.width !== rect.width && rect.width > 0) {
+                writeCanvas.width = rect.width;
+                writeCanvas.height = rect.height;
+            }
+
+            writeCanvas.onmousedown = startWriting;
+            writeCanvas.onmousemove = drawWriting;
+            writeCanvas.onmouseup = stopWriting;
+            writeCanvas.onmouseleave = stopWriting;
+
+            writeCanvas.ontouchstart = (e) => { e.preventDefault(); startWriting(e.touches[0]); };
+            writeCanvas.ontouchmove = (e) => { e.preventDefault(); drawWriting(e.touches[0]); };
+            writeCanvas.ontouchend = (e) => { e.preventDefault(); stopWriting(); };
+        }
+
+        function startWriting(e) {
+            isWriting = true;
+            writePoints = [];
+            const rect = writeCanvas.getBoundingClientRect();
+            writePoints.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+        }
+
+        function drawWriting(e) {
+            if (!isWriting) return;
+            const rect = writeCanvas.getBoundingClientRect();
+            writePoints.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+
+            writeCtx.lineWidth = 22; // 適合低年級粗麥克筆
+            writeCtx.lineCap = 'round';
+            writeCtx.lineJoin = 'round';
+
+            if (brushMode === 'rainbow') {
+                writeCtx.strokeStyle = `hsl(${rainbowHue}, 90%, 55%)`;
+                rainbowHue = (rainbowHue + 5) % 360;
+            } else {
+                writeCtx.strokeStyle = '#2563EB'; // 教育部標準注音藍
+            }
+
+            // 貝茲平滑曲線演算法（去除手震鋸齒）
+            writeCtx.beginPath();
+            if (writePoints.length < 3) {
+                const b = writePoints[0];
+                writeCtx.arc(b.x, b.y, writeCtx.lineWidth / 2, 0, Math.PI * 2);
+                writeCtx.fill();
+            } else {
+                writeCtx.moveTo(writePoints[0].x, writePoints[0].y);
+                for (let i = 1; i < writePoints.length - 2; i++) {
+                    const xc = (writePoints[i].x + writePoints[i + 1].x) / 2;
+                    const yc = (writePoints[i].y + writePoints[i + 1].y) / 2;
+                    writeCtx.quadraticCurveTo(writePoints[i].x, writePoints[i].y, xc, yc);
+                }
+                writeCtx.quadraticCurveTo(
+                    writePoints[writePoints.length - 2].x,
+                    writePoints[writePoints.length - 2].y,
+                    writePoints[writePoints.length - 1].x,
+                    writePoints[writePoints.length - 1].y
+                );
+                writeCtx.stroke();
+            }
+        }
+
+        function stopWriting() { isWriting = false; }
+
+        function setBrushMode(mode) {
+            brushMode = mode;
+            const bNorm = document.getElementById('brush-mode-normal');
+            const bRain = document.getElementById('brush-mode-rainbow');
+            if (mode === 'normal') {
+                bNorm.className = "btn-3d bg-blue-500 text-white font-black py-2.5 rounded-xl border-blue-600 text-sm shadow-sm";
+                bRain.className = "btn-3d bg-gray-100 text-gray-600 font-black py-2.5 rounded-xl border-gray-200 text-sm";
+                showCuteToast("切換為標準藍筆！", "🖊️");
+            } else {
+                bRain.className = "btn-3d bg-gradient-to-r from-pink-400 via-amber-300 to-emerald-400 text-white font-black py-2.5 rounded-xl border-pink-500 text-sm shadow-sm";
+                bNorm.className = "btn-3d bg-gray-100 text-gray-600 font-black py-2.5 rounded-xl border-gray-200 text-sm";
+                showCuteToast("哇！彩虹魔法筆出現了！", "🌈");
+            }
+        }
+
+        function clearWritingCanvas(silent = false) {
+            if (writeCtx && writeCanvas) {
+                writeCtx.clearRect(0, 0, writeCanvas.width, writeCanvas.height);
+            }
+            if (!silent) showCuteToast("畫布乾淨溜溜囉！", "🧼");
+        }
+
+        function finishWriting() {
+            soundVictory();
+            speakSlow(`太棒了！你的 ${ALL_UNITS[currentUnitIndex].symbol} 寫得真漂亮！`, 0.7);
+            showCuteToast("太棒了！筆劃好工整！", "🌟");
+            confetti({ particleCount: 120, spread: 90, origin: { y: 0.6 } });
+        }
+
+        function updateWritingUnit() {
+            const sym = ALL_UNITS[currentUnitIndex].symbol;
+            document.getElementById('write-unit-badge').innerText = sym;
+            document.getElementById('write-heading').innerText = `在田字格裡寫寫看「${sym}」！`;
+            document.getElementById('watermark-symbol').innerText = sym;
+            clearWritingCanvas(true);
+        }
+
+        // --- Web Audio 音效 ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(freq, type, duration, vol=0.15) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.02);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function soundSuccess() {
+            playTone(523.25, 'sine', 0.15, 0.2);
+            setTimeout(() => playTone(659.25, 'sine', 0.2, 0.2), 100);
+        }
+        function soundSoftWrong() {
+            playTone(220, 'triangle', 0.15, 0.12);
+            setTimeout(() => playTone(174.61, 'triangle', 0.2, 0.12), 100);
+        }
+        function soundVictory() {
+            [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+                setTimeout(() => playTone(freq, 'sine', 0.3, 0.2), idx * 130);
+            });
+        }
+
+        // --- 台灣教育部多音字發音防呆映射字典 ---
+        function correctPhonetics(text) {
+            return text
+                .replace(/垃圾/g, "樂色")
+                .replace(/和/g, "瀚")
+                .replace(/都會/g, "兜會")
+                .replace(/都吃/g, "兜吃")
+                .replace(/^都$/, "兜")
+                .replace(/教他/g, "交他")
+                .replace(/教/g, "交")
+                .replace(/哈巴/g, "哈芭")
+                .replace(/^哈$/, "哈！")
+                .replace(/風/g, "封");
+        }
+
+        // --- TTS 慢速語音 (具備台灣在地語音校正) ---
+        function speakSlow(text, rate = 0.55) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const safeText = correctPhonetics(text);
+                const u = new SpeechSynthesisUtterance(safeText);
+                u.lang = 'zh-TW';
+                u.rate = rate; 
+                u.pitch = 1.1;
+                window.speechSynthesis.speak(u);
+            }
+        }
+
+        // --- UI 選單渲染 ---
+        function toggleCategory(type) {
+            const selector = document.getElementById('symbol-selector');
+            selector.innerHTML = ''; 
+            
+            const filteredUnits = ALL_UNITS.map((u, idx) => ({...u, originalIndex: idx})).filter(u => u.type === type);
+            
+            filteredUnits.forEach(unit => {
+                const btn = document.createElement('button');
+                btn.className = `btn-3d w-12 h-12 sm:w-14 sm:h-14 rounded-2xl font-black text-xl sm:text-2xl border-2 transition-all 
+                                ${unit.originalIndex === currentUnitIndex ? 'bg-amber-400 text-white border-amber-500 scale-105' : 'bg-white text-gray-700 border-gray-200 hover:bg-amber-50'}`;
+                btn.innerText = unit.symbol;
+                btn.onclick = () => { loadUnit(unit.originalIndex); toggleCategory(type); };
+                selector.appendChild(btn);
+            });
+        }
+
+        function loadUnit(index) {
+            currentUnitIndex = index;
+            const unit = ALL_UNITS[index];
+
+            // 清除前一單元可能殘留的語音與定時器
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            if (window._sentenceTimer) clearTimeout(window._sentenceTimer);
+            document.getElementById('row-1')?.classList.remove('ring-4', 'ring-amber-300', 'p-1', 'rounded-2xl');
+            document.getElementById('row-2')?.classList.remove('ring-4', 'ring-teal-300', 'p-1', 'rounded-2xl');
+
+            document.getElementById('unit-badge').innerText = unit.symbol;
+            document.getElementById('prompt-heading').innerText = `找出「${unit.symbol}」在哪裡！`;
+
+            renderCards();
+            updateWritingUnit(); // 同步更新田字格單元符號
+
+            if (mainMode === 'cards') {
+                speakSlow(`找找看 ${unit.symbol}`);
+            } else {
+                speakSlow(`現在練習寫 ${unit.symbol}`);
+            }
+        }
+
+        function renderCards() {
+            const row1 = document.getElementById('row-1');
+            const row2 = document.getElementById('row-2');
+            if (!row1 || !row2) return;
+            row1.innerHTML = '';
+            row2.innerHTML = '';
+
+            const unit = ALL_UNITS[currentUnitIndex];
+            foundTargets = 0;
+            totalCurrentTargets = unit.targets ? unit.targets.length : unit.words.filter(w => w.target).length;
+
+            // 動態渲染成就目標星星槽位
+            const starBox = document.getElementById('star-container');
+            if (starBox) {
+                starBox.innerHTML = '';
+                for (let i = 0; i < totalCurrentTargets; i++) {
+                    const star = document.createElement('i');
+                    star.className = 'fa-solid fa-star star-inactive';
+                    star.id = `star-${i}`;
+                    starBox.appendChild(star);
+                }
+            }
+
+            // 依序生成 14 個標準直式注音字卡（前 7 字上句，後 7 字下句）
+            unit.words.forEach((wordObj, index) => {
+                const card = document.createElement('div');
+                card.className = 'moe-card';
+                card.setAttribute('data-target', wordObj.target);
+                card.setAttribute('data-word', wordObj.char);
+
+                const symbols = Array.from(wordObj.bpm);
+                let toneSymbol = '';
+                if (wordObj.tone === '2') toneSymbol = 'ˊ';
+                else if (wordObj.tone === '3') toneSymbol = 'ˇ';
+                else if (wordObj.tone === '4') toneSymbol = 'ˋ';
+                else if (wordObj.tone === 'light') toneSymbol = '˙';
+
+                let zhuyinHtml = '';
+                if (wordObj.tone === 'light') zhuyinHtml += `<span class="moe-tone-light">˙</span>`;
+                symbols.forEach(sym => zhuyinHtml += `<span class="moe-symbol">${sym}</span>`);
+                if (toneSymbol && wordObj.tone !== 'light') zhuyinHtml += `<span class="moe-tone-side">${toneSymbol}</span>`;
+
+                card.innerHTML = `
+                    <span class="moe-char-main">${wordObj.char}</span>
+                    <div class="moe-zhuyin-col">${zhuyinHtml}</div>
+                `;
+
+                card.onclick = () => checkCard(card);
+
+                // 強制分配：前 7 字放置第 1 排（上句），後 7 字放置第 2 排（下句）
+                if (index < 7) {
+                    row1.appendChild(card);
+                } else {
+                    row2.appendChild(card);
+                }
+            });
+        }
+
+        function checkCard(card) {
+            if (card.classList.contains('solved') || card.classList.contains('disabled')) return;
+
+            const isTarget = card.getAttribute('data-target') === 'true';
+            const word = card.getAttribute('data-word');
+
+            if (isTarget) {
+                card.classList.add('solved');
+                soundSuccess();
+                speakSlow(word, 0.8);
+
+                // 點亮當前成就星星
+                const star = document.getElementById(`star-${foundTargets}`);
+                if (star) {
+                    star.classList.remove('star-inactive');
+                    star.classList.add('star-active');
+                }
+
+                foundTargets++;
+                confetti({ particleCount: 25, spread: 50, origin: { y: 0.6 } });
+
+                // 全部目標找齊，發放通關獎勵
+                if (foundTargets === totalCurrentTargets) {
+                    setTimeout(() => {
+                        soundVictory();
+                        speakSlow(`太棒了！全部的 ${ALL_UNITS[currentUnitIndex].symbol} 都找到了！`, 0.7);
+                        showCuteToast("挑戰成功！你太厲害了！", "🌟");
+                        confetti({ particleCount: 120, spread: 90, origin: { y: 0.5 } });
+                    }, 500);
+                }
+            } else {
+                soundSoftWrong();
+                card.classList.add('wobble', 'disabled');
+                setTimeout(() => card.classList.remove('wobble'), 500);
+
+                const msgs = ["這個字沒有這個音喔！", "沒關係，再找找看！", "再試一次，加油！"];
+                const msg = msgs[Math.floor(Math.random() * msgs.length)];
+                speakSlow(msg, 0.75);
+                showCuteToast(msg, "💡");
+            }
+        }
+
+        function playTargetSentence() {
+            const unit = ALL_UNITS[currentUnitIndex];
+            // 7x2 結構：精確切分為上句 (前7字) 與下句 (後7字)
+            const line1 = unit.chars.slice(0, 7);
+            const line2 = unit.chars.slice(7);
+
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                if (window._sentenceTimer) clearTimeout(window._sentenceTimer);
+                
+                const cleanLine1 = correctPhonetics(line1);
+                const cleanLine2 = correctPhonetics(line2);
+
+                const u1 = new SpeechSynthesisUtterance(cleanLine1);
+                u1.lang = 'zh-TW';
+                u1.rate = 0.52; // 極慢速朗讀上句
+                u1.pitch = 1.1;
+
+                const u2 = new SpeechSynthesisUtterance(cleanLine2);
+                u2.lang = 'zh-TW';
+                u2.rate = 0.52; // 極慢速朗讀下句
+                u2.pitch = 1.1;
+
+                const row1 = document.getElementById('row-1');
+                const row2 = document.getElementById('row-2');
+
+                // 念第一行時：加上柔和聚焦框，提醒孩子看第一行
+                row1.classList.add('ring-4', 'ring-amber-300', 'p-1', 'rounded-2xl', 'transition-all');
+                row2.classList.remove('ring-4', 'ring-teal-300', 'p-1', 'rounded-2xl');
+                showCuteToast("仔細看第一行...", "👀");
+
+                // 上句唸完後，精確停頓 0.5 秒 (500 毫秒) 供學童視線換行，再唸下句
+                u1.onend = () => {
+                    row1.classList.remove('ring-4', 'ring-amber-300', 'p-1', 'rounded-2xl');
+                    window._sentenceTimer = setTimeout(() => {
+                        row2.classList.add('ring-4', 'ring-teal-300', 'p-1', 'rounded-2xl', 'transition-all');
+                        showCuteToast("接著看第二行喔！", "👇");
+                        window.speechSynthesis.speak(u2);
+                    }, 500); // 嚴格 0.5 秒停頓
+                };
+
+                // 第二行朗讀結束後，移除高亮光圈
+                u2.onend = () => {
+                    row2.classList.remove('ring-4', 'ring-teal-300', 'p-1', 'rounded-2xl');
+                };
+
+                window.speechSynthesis.speak(u1);
+            }
+        }
+
+        function giveHint() {
+            const wrongCards = Array.from(document.querySelectorAll('.moe-card[data-target="false"]:not(.disabled)'));
+            if (wrongCards.length > 0) {
+                const pick = wrongCards[Math.floor(Math.random() * wrongCards.length)];
+                pick.classList.add('disabled');
+                soundSuccess();
+                speakSlow("變走一個字");
+                showCuteToast("💡 魔法提示！變走一個錯的字！", "✨");
+            }
+        }
+
+        function resetCards() {
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            if (window._sentenceTimer) clearTimeout(window._sentenceTimer);
+            document.getElementById('row-1')?.classList.remove('ring-4', 'ring-amber-300', 'p-1', 'rounded-2xl');
+            document.getElementById('row-2')?.classList.remove('ring-4', 'ring-teal-300', 'p-1', 'rounded-2xl');
+            renderCards();
+            showCuteToast("重新開始囉！", "🔄");
+        }
+
+        function showCuteToast(msg, emoji="🐻") {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            document.getElementById('toast-emoji').innerText = emoji;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        // 初始化
+        window.addEventListener('load', () => {
+            toggleCategory('shengmu');
+            loadUnit(0);
+        });
+    </script>
+</body>
+</html>
